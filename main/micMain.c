@@ -246,8 +246,8 @@ void pv_processor_task(void *pvParam)
         // PASSO 1: Aplicar o filtro (Convolução)
         // A função dsps_conv_f32 filtra o som capturado usando os coeficientes dos 2000 Hz
         dsps_conv_f32(sound_samp_buf_proc, MICEX_SOUND_SAMPLES_BUF_SIZE, hbpf2k, n_fir_2k, sinal_filtrado);
-        dsps_conv_f32(sound_samp_buf_proc2780, MICEX_SOUND_SAMPLES_BUF_SIZE, hbpf2780, n_fir_2780, sinal_filtrado2780);
-        dsps_conv_f32(sound_samp_buf_proc2560, MICEX_SOUND_SAMPLES_BUF_SIZE, hbpf3560, n_fir_3560, sinal_filtrado3560);
+        dsps_conv_f32(sound_samp_buf_proc, MICEX_SOUND_SAMPLES_BUF_SIZE, hbpf2780, n_fir_2780, sinal_filtrado2780);
+        dsps_conv_f32(sound_samp_buf_proc, MICEX_SOUND_SAMPLES_BUF_SIZE, hbpf3560, n_fir_3560, sinal_filtrado3560);
 
 
         // PASSO 2: Calcular a "Força" (Energia) do sinal filtrado
@@ -264,12 +264,49 @@ void pv_processor_task(void *pvParam)
 
         // PASSO 3: Imprimir a energia para podermos definir um Limiar (Threshold)
         // Por agora vamos apenas ler este valor no terminal para perceber os níveis do microfone
-        ESP_LOGI(TAG, "Energia nos 2000 Hz: %f", energia_2k);
-        ESP_LOGI(TAG, "Energia nos 2000 Hz: %f", energia_2780);
-        ESP_LOGI(TAG, "Energia nos 2000 Hz: %f", energia_3560);
+        
+        //ESP_LOGI(TAG, "Energia nos 2000 Hz: %f", energia_2k);
+        //ESP_LOGI(TAG, "Energia nos 2780 Hz: %f", energia_2780);
+        //ESP_LOGI(TAG, "Energia nos 3560 Hz: %f", energia_3560);
 
-        // (Futuramente, colocaremos aqui um "if (energia_2k > LIMIAR) { print("Símbolo 0 detetado!"); }")
-    }
+        //LIMIARES 
+        
+    // Linha de base do silêncio absoluto elétrico de cada canal
+    const float RUIDO_BASE_0 = 1270000.0f; // Canal 2000 Hz 
+    const float RUIDO_BASE_1 =  626000.0f; // Canal 2780 Hz
+    const float RUIDO_BASE_2 =  396000.0f; // Canal 3560 Hz
+
+    // Margem mínima que o sinal líquido tem de ultrapassar para ser um TOM real.
+    // Como o teu sinal de 2000Hz sobe cerca de 100k~130k, colocamos o corte dele em 60k (seguro).
+    // Os outros disparam na casa dos milhões, pelo que limiares de 300k evitam qualquer ruído.
+    const float LIMIAR_UTIL_0 =   60000.0f; // Margem para 2000 Hz
+    const float LIMIAR_UTIL_1 =  300000.0f; // Margem para 2780 Hz
+    const float LIMIAR_UTIL_2 =  300000.0f; // Margem para 3560 Hz
+
+    // ... (Mantém a inicialização da tua máquina de estados e o xQueueReceive) ...
+
+            // EXTRAÇÃO DO SINAL ÚTIL (Subtração do Ruído Fundo)
+            float liq_0 = energia_2k - RUIDO_BASE_0;
+            float liq_1 = energia_2780 - RUIDO_BASE_1;
+            float liq_2 = energia_3560 - RUIDO_BASE_2;
+
+            if (liq_0 < 0) liq_0 = 0;
+            if (liq_1 < 0) liq_1 = 0;
+            if (liq_2 < 0) liq_2 = 0;  
+
+            if(liq_0 > LIMIAR_UTIL_0) {
+                ESP_LOGI(TAG, "TOM 2000 Hz DETECTADO! Energia líquida: %f", liq_0);
+            } 
+            if(liq_1 > LIMIAR_UTIL_1) {
+                ESP_LOGI(TAG, "TOM 2780 Hz DETECTADO! Energia líquida: %f", liq_1);
+            }
+            if(liq_2 > LIMIAR_UTIL_2) {
+                ESP_LOGI(TAG, "TOM 3560 Hz DETECTADO! Energia líquida: %f", liq_2);
+            }
+        }
+
+
+
 }
 
 /* ADC Callback - called when one frame was acquired */
