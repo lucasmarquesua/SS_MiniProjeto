@@ -237,6 +237,14 @@ void pv_processor_task(void *pvParam)
     /* Variable inits */
     sound_samp_buf_proc = heap_caps_malloc(sizeof(float) * MICEX_SOUND_SAMPLES_BUF_SIZE, MALLOC_CAP_DMA);
     
+    //Sinais de controlo da máquina de estados
+    //Sequencia de abertura da porta: 2000 Hz -> 2780 Hz -> 3560 Hz
+     int SEQ_ABRIR[4]  = {0, 1, 2, 0}; 
+     int SEQ_FECHAR[4] = {2, 1, 0, 2};
+
+     
+
+
 
     /* Infinite processing loop */
     for(;;) {
@@ -270,39 +278,49 @@ void pv_processor_task(void *pvParam)
         //ESP_LOGI(TAG, "Energia nos 3560 Hz: %f", energia_3560);
 
         //LIMIARES 
-        
-    // Linha de base do silêncio absoluto elétrico de cada canal
-    const float RUIDO_BASE_0 = 1270000.0f; // Canal 2000 Hz 
-    const float RUIDO_BASE_1 =  626000.0f; // Canal 2780 Hz
-    const float RUIDO_BASE_2 =  396000.0f; // Canal 3560 Hz
 
-    // Margem mínima que o sinal líquido tem de ultrapassar para ser um TOM real.
-    // Como o teu sinal de 2000Hz sobe cerca de 100k~130k, colocamos o corte dele em 60k (seguro).
-    // Os outros disparam na casa dos milhões, pelo que limiares de 300k evitam qualquer ruído.
-    const float LIMIAR_UTIL_0 =   60000.0f; // Margem para 2000 Hz
-    const float LIMIAR_UTIL_1 =  300000.0f; // Margem para 2780 Hz
-    const float LIMIAR_UTIL_2 =  300000.0f; // Margem para 3560 Hz
+    //Linha base de ruido na zona de testes (sem som, mas com o microfone ligado e captando o ambiente)
+     float RUIDO_BASE_0 = 1270000.0f; // Canal 2000 Hz 
+     float RUIDO_BASE_1 =  626000.0f; // Canal 2780 Hz
+     float RUIDO_BASE_2 =  396000.0f; // Canal 3560 Hz
 
-    // ... (Mantém a inicialização da tua máquina de estados e o xQueueReceive) ...
+
+     float LIMIAR_UTIL_0 =   60000.0f; // Margem para 2000 Hz
+     float LIMIAR_UTIL_1 =  300000.0f; // Margem para 2780 Hz
+     float LIMIAR_UTIL_2 =  300000.0f; // Margem para 3560 Hz
+
 
             // EXTRAÇÃO DO SINAL ÚTIL (Subtração do Ruído Fundo)
-            float liq_0 = energia_2k - RUIDO_BASE_0;
-            float liq_1 = energia_2780 - RUIDO_BASE_1;
-            float liq_2 = energia_3560 - RUIDO_BASE_2;
+     float liq_0 = energia_2k - RUIDO_BASE_0;
+     float liq_1 = energia_2780 - RUIDO_BASE_1;
+     float liq_2 = energia_3560 - RUIDO_BASE_2;
 
-            if (liq_0 < 0) liq_0 = 0;
-            if (liq_1 < 0) liq_1 = 0;
-            if (liq_2 < 0) liq_2 = 0;  
+    if (liq_0 < 0) liq_0 = 0;
+    if (liq_1 < 0) liq_1 = 0;
+    if (liq_2 < 0) liq_2 = 0;  
+
+
+            // variavel controle da máquina de estados (detecção de tom)
+            //  int tom_detectado = -1; // -1 = nenhum, 0 = 2000 Hz, 1 = 2780 Hz,  2 = 3560 Hz
+
+
 
             if(liq_0 > LIMIAR_UTIL_0) {
                 ESP_LOGI(TAG, "TOM 2000 Hz DETECTADO! Energia líquida: %f", liq_0);
+               //tom_detectado = 0;
             } 
             if(liq_1 > LIMIAR_UTIL_1) {
                 ESP_LOGI(TAG, "TOM 2780 Hz DETECTADO! Energia líquida: %f", liq_1);
+                //tom_detectado = 1;
             }
             if(liq_2 > LIMIAR_UTIL_2) {
                 ESP_LOGI(TAG, "TOM 3560 Hz DETECTADO! Energia líquida: %f", liq_2);
+                //tom_detectado = 2;
             }
+        
+            // MAQUINA DE ESTADOS SIMPLES PARA CONTROLE DO LED
+         
+        
         }
 
 
