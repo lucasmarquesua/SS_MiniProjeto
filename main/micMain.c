@@ -91,7 +91,11 @@ __attribute__((aligned(16))) float hbpf2780[]={0.000371006265024 , 0.00053595722
 /*Resposta impulsional do Filtro 3560hz */
 __attribute__((aligned(16))) float hbpf3560[]={0.000031970915394 , 0.000499572812978 , 0.000429933459549 , -0.000168930248969 , -0.000658068764335 , -0.000426468811140 , 0.000372385763921 , 0.000865202751142 , 0.000382892901619 , -0.000676387406818 , -0.001115308159728 , -0.000253515422015 , 0.001111374910067 , 0.001379198004707 , -0.000021359192361 , -0.001692474309375 , -0.001600267152221 , 0.000505891383202 , 0.002408040447011 , 0.001695896647418 , -0.001255383525038 , -0.003210861886966 , -0.001564857936403 , 0.002301141102823 , 0.004014253286978 , 0.001100385400210 , -0.003636074531311 , -0.004694654681400 , -0.000207516668021 , 0.005203795361183 , 0.005101410989820 , -0.001177628469988 , -0.006893702757947 , -0.005073253564041 , 0.003069581194352 , 0.008543853027450 , 0.004459825933335 , -0.005419408089248 , -0.009952340524814 , -0.003145580175890 , 0.008107579978607 , 0.010896640273784 , 0.001072694815959 , -0.010945872197435 , -0.011159061563516 , 0.001740538928916 , 0.013689170025837 , 0.010555342217080 , -0.005189085187894 , -0.016056651548710 , -0.008962661644444 , 0.009080661141384 , 0.017760393583616 , 0.006343105385259 , -0.013146475220809 , -0.018538211262696 , -0.002758940844605 , 0.017062803368128 , 0.018186695435760 , -0.001623055422327 , -0.020481452951397 , -0.016590100414693 , 0.006539648036700 , 0.023065809233667 , 0.013741028663049 , -0.011651395300101 , -0.024528205258350 , -0.009749741433683 , 0.016573272686334 , 0.024663957245319 , 0.004840289422467 , -0.020912366833842 , -0.023377641067573 , 0.000666674927425 , 0.024308273502550 , 0.020698037017654 , -0.006382801043282 , -0.026471333110575 , -0.016779534957216 , 0.011889488357555 , 0.027213987575656 , 0.011889488357555 , -0.016779534957216 , -0.026471333110575 , -0.006382801043282 , 0.020698037017654 , 0.024308273502550 , 0.000666674927425 , -0.023377641067573 , -0.020912366833842 , 0.004840289422467 , 0.024663957245319 , 0.016573272686334 , -0.009749741433683 , -0.024528205258350 , -0.011651395300101 , 0.013741028663049 , 0.023065809233667 , 0.006539648036700 , -0.016590100414693 , -0.020481452951397 , -0.001623055422327 , 0.018186695435760 , 0.017062803368128 , -0.002758940844605 , -0.018538211262696 , -0.013146475220809 , 0.006343105385259 , 0.017760393583616 , 0.009080661141384 , -0.008962661644444 , -0.016056651548710 , -0.005189085187894 , 0.010555342217080 , 0.013689170025837 , 0.001740538928916 , -0.011159061563516 , -0.010945872197435 , 0.001072694815959 , 0.010896640273784 , 0.008107579978607 , -0.003145580175890 , -0.009952340524814 , -0.005419408089248 , 0.004459825933335 , 0.008543853027450 , 0.003069581194352 , -0.005073253564041 , -0.006893702757947 , -0.001177628469988 , 0.005101410989820 , 0.005203795361183 , -0.000207516668021 , -0.004694654681400 , -0.003636074531311 , 0.001100385400210 , 0.004014253286978 , 0.002301141102823 , -0.001564857936403 , -0.003210861886966 , -0.001255383525038 , 0.001695896647418 , 0.002408040447011 , 0.000505891383202 , -0.001600267152221 , -0.001692474309375 , -0.000021359192361 , 0.001379198004707 , 0.001111374910067 , -0.000253515422015 , -0.001115308159728 , -0.000676387406818 , 0.000382892901619 , 0.000865202751142 , 0.000372385763921 , -0.000426468811140 , -0.000658068764335 , -0.000168930248969 , 0.000429933459549 , 0.000499572812978 , 0.000031970915394}; 
 
-
+/* Enumerado das máquinas de estado: Mais simples de resolver. */
+typedef enum {
+    ESTADO_ESPERA_SEQUENCIA,
+    ESTADO_ERRO_PISCAR
+    } t_estado;
 
 
 
@@ -160,6 +164,7 @@ void app_main(void)
     // Garantir que o LED começa desligado (assumindo lógica ativa em HIGH)
     gpio_set_level(LED_PIN, 0);
 
+    
 
 
     /* Infinite loop - wait for data and process it */
@@ -242,7 +247,12 @@ void pv_processor_task(void *pvParam)
      int SEQ_ABRIR[4]  = {0, 1, 2, 0}; 
      int SEQ_FECHAR[4] = {2, 1, 0, 2};
 
-     
+    t_estado estado_atual = ESTADO_ESPERA_SEQUENCIA;
+    int digito_idx = 0; // Representa em que "bola" (estado 0 a 3) estamos atualmente
+    int sequencia_capturada[4] = {-1, -1, -1, -1};
+    int ultimo_tom_processado = -1;
+    uint32_t tempo_inicio_erro = 0;
+    int blink_contador = 0;     
 
 
 
@@ -291,6 +301,9 @@ void pv_processor_task(void *pvParam)
 
 
             // EXTRAÇÃO DO SINAL ÚTIL (Subtração do Ruído Fundo)
+            // Coloquei o microfone aqui em silencio aqui. e deu esses valores, usei o codigo que
+            // está comentado na linha 286,287 e 289. para saber como ia fazer as contas pra tirar o ruído.
+            // Deve ter um jeito mais profissional de fazer, mas funciona bem assim.
      float liq_0 = energia_2k - RUIDO_BASE_0;
      float liq_1 = energia_2780 - RUIDO_BASE_1;
      float liq_2 = energia_3560 - RUIDO_BASE_2;
@@ -299,31 +312,105 @@ void pv_processor_task(void *pvParam)
     if (liq_1 < 0) liq_1 = 0;
     if (liq_2 < 0) liq_2 = 0;  
 
-
-            // variavel controle da máquina de estados (detecção de tom)
-            //  int tom_detectado = -1; // -1 = nenhum, 0 = 2000 Hz, 1 = 2780 Hz,  2 = 3560 Hz
-
-
-
-            if(liq_0 > LIMIAR_UTIL_0) {
-                ESP_LOGI(TAG, "TOM 2000 Hz DETECTADO! Energia líquida: %f", liq_0);
-               //tom_detectado = 0;
-            } 
-            if(liq_1 > LIMIAR_UTIL_1) {
-                ESP_LOGI(TAG, "TOM 2780 Hz DETECTADO! Energia líquida: %f", liq_1);
-                //tom_detectado = 1;
-            }
-            if(liq_2 > LIMIAR_UTIL_2) {
-                ESP_LOGI(TAG, "TOM 3560 Hz DETECTADO! Energia líquida: %f", liq_2);
-                //tom_detectado = 2;
-            }
-        
-            // MAQUINA DE ESTADOS SIMPLES PARA CONTROLE DO LED
-         
-        
+        //Aqui resolve a situação dos sons que eu expliquei lá em cima.
+        int tom_detetado = -1;
+        float maior_proporcao = 0.0f;
+        //Essa parte é para criar uma proporção do sinal, se ele é pelo menos 2x ou mais do que esperamos dele 
+        //Isso ajuda a identificar sons que estão entre nossas frequencias desejadas, mas não é um som que gostariamos.
+        //Se colocarmos algo entre 2000 e 2780, isso ajuda a identificar o som n desejado.
+        if (liq_0 > LIMIAR_UTIL_0) {
+            float prop = liq_0 / LIMIAR_UTIL_0;
+            if (prop > maior_proporcao) { maior_proporcao = prop; tom_detetado = 0; }
+        }
+        if (liq_1 > LIMIAR_UTIL_1) {
+            float prop = liq_1 / LIMIAR_UTIL_1;
+            if (prop > maior_proporcao) { maior_proporcao = prop; tom_detetado = 1; }
+        }
+        if (liq_2 > LIMIAR_UTIL_2) {
+            float prop = liq_2 / LIMIAR_UTIL_2;
+            if (prop > maior_proporcao) { maior_proporcao = prop; tom_detetado = 2; }
         }
 
+    
+        int tom_efetivo = tom_detetado;
+        if (tom_detetado == ultimo_tom_processado && tom_detetado != -1) {
+            tom_efetivo = -1; 
+        }
+        ultimo_tom_processado = tom_detetado;
 
+        /*
+        * Foi criado um enumerado para simplificar a visualização da maquina de estado, também daria 
+        para fazer de outro jeito, mas achei mais simples e acessível para nós.
+
+        Os maiores problemas que encontrei na maquina de estados foram:
+            * 1.) Quando transmitimos o som certo por 1, por exemplo - temos fs_microfone = 20Khz 
+            * periodo_amostragem = 1/fs_microfone  = 50x10^(-6) s.
+            * A FIFO enche a cada 50x10^(-6) * 2048 = 102x10^(-3);
+            * Se tocarmos um som durante 1 s temos 1000ms / 102ms = 10 FIFOS com o mesmo som,
+            * Assim a maquina iria achar que seria 10 simbolos e iria causar um erro instantaneo
+            * 
+            * 2.)  
+        
+        
+        */
+        switch (estado_atual) {
+
+            case ESTADO_ESPERA_SEQUENCIA:
+                if (tom_efetivo != -1) { 
+                    sequencia_capturada[digito_idx] = tom_efetivo;
+                    ESP_LOGI(TAG, "Estado %d -> Ouviu símbolo %d", digito_idx, tom_efetivo);
+                    digito_idx++;
+
+                    // Valida se a sequência em curso ainda corresponde a "Abrir" ou "Fechar"
+                    bool caminho_abrir_valido = true;
+                    bool caminho_fechar_valido = true;
+                    
+                    for(int i = 0; i < digito_idx; i++) {
+                        if (sequencia_capturada[i] != SEQ_ABRIR[i]) caminho_abrir_valido = false;
+                        if (sequencia_capturada[i] != SEQ_FECHAR[i]) caminho_fechar_valido = false;
+                    }
+
+                    // Se não for nem abrir nem fechar, Erro! Volta ao início.
+                    if (!caminho_abrir_valido && !caminho_fechar_valido) {
+                        ESP_LOGW(TAG, "Som errado! Sequência abortada. A iniciar Erro (5s)...");
+                        digito_idx = 0;
+                        tempo_inicio_erro = xTaskGetTickCount(); //isso daqui é para guardar o tempo atual 
+                        estado_atual = ESTADO_ERRO_PISCAR;
+                    } 
+                    // Se chegou à bola 4 (último dígito) com sucesso
+                    else if (digito_idx == 4) {
+                        if (caminho_abrir_valido) {
+                            ESP_LOGI(TAG, ">>> SEQUÊNCIA COMPLETA: ABRIR PORTA (LED ON) <<<");
+                            gpio_set_level(LED_PIN, 1);
+                        } else if (caminho_fechar_valido) {
+                            ESP_LOGI(TAG, ">>> SEQUÊNCIA COMPLETA: FECHAR PORTA (LED OFF) <<<");
+                            gpio_set_level(LED_PIN, 0);
+                        }
+                        
+                        // Retorna para o Estado Inicial (Aguardar nova sequência)
+                        digito_idx = 0;
+                    }
+                }
+                // Se tom_efetivo == -1 (Ruído/Silêncio), permanece no estado infinitamente (não faz nada)
+                break;
+
+            case ESTADO_ERRO_PISCAR:
+                // Pisca o LED de forma não-bloqueante a cada bloco recebido
+                blink_contador++;
+                gpio_set_level(LED_PIN, (blink_contador % 2 == 0));
+
+                // Verifica se já passaram 5000 milissegundos
+                if ((xTaskGetTickCount() - tempo_inicio_erro) >= pdMS_TO_TICKS(5000)) {
+                    gpio_set_level(LED_PIN, 0); // Garante que o LED fica desligado no fim
+                    ESP_LOGI(TAG, "Fim do Erro. Sistema reiniciado para o Estado Inicial.");
+                    estado_atual = ESTADO_ESPERA_SEQUENCIA; // Volta a ficar pronto para ouvir
+                }
+                break;
+        } 
+
+
+
+        }
 
 }
 
