@@ -348,8 +348,8 @@ void pv_processor_task(void *pvParam)
             * A FIFO enche a cada 50x10^(-6) * 2048 = 102x10^(-3);
             * Se tocarmos um som durante 1 s temos 1000ms / 102ms = 10 FIFOS com o mesmo som,
             * Assim a maquina iria achar que seria 10 simbolos e iria causar um erro instantaneo
-            * 
-            * 2.)  
+             
+            
         
         
         */
