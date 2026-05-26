@@ -313,22 +313,24 @@ void pv_processor_task(void *pvParam)
     if (liq_2 < 0) liq_2 = 0;  
 
         //Aqui resolve a situação dos sons que eu expliquei lá em cima.
+      // ------------------------------------------------------------------
+        // DETEÇÃO POR RÁCIO SINAL/RUÍDO (PUREZA DO TOM)
         int tom_detetado = -1;
-        float maior_proporcao = 0.0f;
-        //Essa parte é para criar uma proporção do sinal, se ele é pelo menos 2x ou mais do que esperamos dele 
-        //Isso ajuda a identificar sons que estão entre nossas frequencias desejadas, mas não é um som que gostariamos.
-        //Se colocarmos algo entre 2000 e 2780, isso ajuda a identificar o som n desejado.
-        if (liq_0 > LIMIAR_UTIL_0) {
-            float prop = liq_0 / LIMIAR_UTIL_0;
-            if (prop > maior_proporcao) { maior_proporcao = prop; tom_detetado = 0; }
-        }
-        if (liq_1 > LIMIAR_UTIL_1) {
-            float prop = liq_1 / LIMIAR_UTIL_1;
-            if (prop > maior_proporcao) { maior_proporcao = prop; tom_detetado = 1; }
-        }
-        if (liq_2 > LIMIAR_UTIL_2) {
-            float prop = liq_2 / LIMIAR_UTIL_2;
-            if (prop > maior_proporcao) { maior_proporcao = prop; tom_detetado = 2; }
+        
+        // Multiplicador de Pureza (3.0 significa que o tom tem de ser 3x mais forte que o lixo)
+        float FATOR_PUREZA = 3.0f; 
+
+        if (liq_0 > LIMIAR_UTIL_0 && liq_0 > FATOR_PUREZA * (liq_1 + liq_2)) {
+            tom_detetado = 0;
+        } 
+        else if (liq_1 > LIMIAR_UTIL_1 && liq_1 > FATOR_PUREZA * (liq_0 + liq_2)) {
+            tom_detetado = 1;
+        } 
+        else if (liq_2 > LIMIAR_UTIL_2 && liq_2 > FATOR_PUREZA * (liq_0 + liq_1)) {
+            tom_detetado = 2;
+        } else {
+            // Se cair aqui, é silêncio OU um som complexo com várias frequências ativas
+            tom_detetado = -1;
         }
 
     
