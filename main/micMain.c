@@ -403,7 +403,6 @@ void pv_processor_task(void *pvParam)
 
                 // Verifica se já passaram 5000 milissegundos
                 if ((xTaskGetTickCount() - tempo_inicio_erro) >= pdMS_TO_TICKS(5000)) {
-                    gpio_set_level(LED_PIN, 0); // Garante que o LED fica desligado no fim
                     ESP_LOGI(TAG, "Fim do Erro. Sistema reiniciado para o Estado Inicial.");
                     estado_atual = ESTADO_ESPERA_SEQUENCIA; // Volta a ficar pronto para ouvir
                 }
