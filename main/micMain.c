@@ -252,7 +252,8 @@ void pv_processor_task(void *pvParam)
     int sequencia_capturada[4] = {-1, -1, -1, -1};
     int ultimo_tom_processado = -1;
     uint32_t tempo_inicio_erro = 0;
-    int blink_contador = 0;     
+    int blink_contador = 0;
+    int estado_porta = 0;     
 
 
 
@@ -383,10 +384,12 @@ void pv_processor_task(void *pvParam)
                     else if (digito_idx == 4) {
                         if (caminho_abrir_valido) {
                             ESP_LOGI(TAG, ">>> SEQUÊNCIA COMPLETA: ABRIR PORTA (LED ON) <<<");
-                            gpio_set_level(LED_PIN, 1);
+                            estado_porta = 1; // Guarda na memória que está aberta
+                            gpio_set_level(LED_PIN, estado_porta);
                         } else if (caminho_fechar_valido) {
                             ESP_LOGI(TAG, ">>> SEQUÊNCIA COMPLETA: FECHAR PORTA (LED OFF) <<<");
-                            gpio_set_level(LED_PIN, 0);
+                            estado_porta = 0; // Guarda na memória que está aberta
+                            gpio_set_level(LED_PIN, estado_porta);
                         }
                         
                         // Retorna para o Estado Inicial (Aguardar nova sequência)
@@ -403,6 +406,7 @@ void pv_processor_task(void *pvParam)
 
                 // Verifica se já passaram 5000 milissegundos
                 if ((xTaskGetTickCount() - tempo_inicio_erro) >= pdMS_TO_TICKS(5000)) {
+                    gpio_set_level(LED_PIN, estado_porta);
                     ESP_LOGI(TAG, "Fim do Erro. Sistema reiniciado para o Estado Inicial.");
                     estado_atual = ESTADO_ESPERA_SEQUENCIA; // Volta a ficar pronto para ouvir
                 }
